@@ -1,9 +1,9 @@
 # Customer Retention, Revenue Leakage & Churn Analysis
 ### Tools: MySQL · Advanced Excel · Python (data generation) · GitHub Pages
 
-> **Project by Rahul Kumar Malik** — Part of a broader analyst portfolio targeting credit, risk, operations, and business analysis roles.
+> **Project by Rahul Kumar Malik**
 
-## 🌐 [Live Dashboard → View on GitHub Pages](https://rahulkumarmalik.github.io/customer-churn-analysis/)
+## 🌐 [Live Dashboard ](https://rahulkumarmalik.github.io/customer-churn-analysis/)
 
 ---
 
@@ -106,41 +106,6 @@ Customers scored on Recency, Frequency, Monetary using `NTILE(5)` window functio
 
 ---
 
-## How to Enable GitHub Pages
-
-1. Push all files to your GitHub repository
-2. Go to **Settings → Pages**
-3. Set **Source** to `main` branch, root folder `/`
-4. Your dashboard will be live at `https://[username].github.io/[repo-name]/`
-
----
-
-## How to Run Locally
-
-**Step 1 — Generate data**
-```bash
-pip install pandas numpy
-python generate_data.py
-```
-
-**Step 2 — MySQL setup**
-```sql
-source schema.sql;
--- Import CSVs from data/ using MySQL Workbench Table Data Import Wizard
-```
-
-**Step 3 — Run SQL analysis**
-```sql
-source analysis_queries.sql;
-```
-
-**Step 4 — Open Excel**
-Open `customer_churn_workbook.xlsx` — all formulas live. Go to `Churn_Risk_Scorer` and enter any customer's values.
-
-**Step 5 — View dashboard**
-Open `index.html` in any browser, or enable GitHub Pages for the live hosted version.
-
----
 
 ## Skills Demonstrated
 
