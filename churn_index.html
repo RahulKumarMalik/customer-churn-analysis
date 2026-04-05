@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Churn Analytics — Rahul Kumar Malik</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0f1e;
+    --surface:  #111827;
+    --card:     #161f35;
+    --border:   #1e2d4a;
+    --teal:     #00c9a7;
+    --teal-dim: rgba(0,201,167,0.12);
+    --amber:    #f59e0b;
+    --amber-dim:rgba(245,158,11,0.12);
+    --red:      #ef4444;
+    --red-dim:  rgba(239,68,68,0.12);
+    --blue:     #60a5fa;
+    --blue-dim: rgba(96,165,250,0.10);
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --serif:    'DM Serif Display', serif;
+    --sans:     'Outfit', sans-serif;
+    --mono:     'DM Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── BACKGROUND TEXTURE ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 10% 10%, rgba(0,201,167,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 80%, rgba(96,165,250,0.05) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1320px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* ── HEADER ── */
+  header {
+    padding: 48px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+  .header-inner { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  .header-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+    color: var(--teal); background: var(--teal-dim);
+    border: 1px solid rgba(0,201,167,0.25); border-radius: 4px;
+    padding: 4px 12px; margin-bottom: 16px;
+  }
+  .header-tag span { width: 6px; height: 6px; background: var(--teal); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+  h1 { font-family: var(--serif); font-size: clamp(28px, 4vw, 46px); font-weight: 400; line-height: 1.1; margin-bottom: 12px; }
+  h1 em { font-style: italic; color: var(--teal); }
+  .header-sub { color: var(--muted); font-size: 14px; max-width: 560px; }
+  .header-meta { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+  .badge {
+    font-family: var(--mono); font-size: 11px;
+    padding: 3px 10px; border-radius: 3px;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .badge.teal { border-color: rgba(0,201,167,0.3); color: var(--teal); background: var(--teal-dim); }
+
+  /* ── KPI STRIP ── */
+  .kpi-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 40px; }
+  .kpi {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 22px;
+    position: relative; overflow: hidden;
+    transition: transform .2s, border-color .2s;
+  }
+  .kpi:hover { transform: translateY(-2px); border-color: rgba(0,201,167,0.3); }
+  .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .kpi.teal::before  { background: linear-gradient(90deg, var(--teal), transparent); }
+  .kpi.amber::before { background: linear-gradient(90deg, var(--amber), transparent); }
+  .kpi.red::before   { background: linear-gradient(90deg, var(--red), transparent); }
+  .kpi.blue::before  { background: linear-gradient(90deg, var(--blue), transparent); }
+  .kpi-label { font-size: 11px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px; }
+  .kpi-value { font-family: var(--serif); font-size: 32px; line-height: 1; }
+  .kpi.teal  .kpi-value { color: var(--teal); }
+  .kpi.amber .kpi-value { color: var(--amber); }
+  .kpi.red   .kpi-value { color: var(--red); }
+  .kpi.blue  .kpi-value { color: var(--blue); }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  /* ── GRID ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .col-span-2 { grid-column: span 2; }
+  @media(max-width:900px) { .grid-2,.grid-3 { grid-template-columns: 1fr; } .col-span-2 { grid-column: span 1; } }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px;
+    transition: border-color .2s;
+  }
+  .card:hover { border-color: rgba(0,201,167,0.2); }
+  .card-title {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    color: var(--muted); text-transform: uppercase;
+    margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
+  }
+  .card-title::before { content: ''; width: 3px; height: 12px; background: var(--teal); border-radius: 2px; }
+  .card-heading { font-family: var(--serif); font-size: 19px; margin-bottom: 20px; }
+  canvas { max-height: 280px; }
+
+  /* ── FINDINGS ── */
+  .findings { display: flex; flex-direction: column; gap: 12px; }
+  .finding {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+    transition: border-color .2s, background .2s;
+    animation: fadeUp .5s ease both;
+  }
+  .finding:hover { border-color: rgba(0,201,167,0.25); background: rgba(0,201,167,0.04); }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+  .finding:nth-child(1){animation-delay:.1s}
+  .finding:nth-child(2){animation-delay:.2s}
+  .finding:nth-child(3){animation-delay:.3s}
+  .finding:nth-child(4){animation-delay:.4s}
+  .finding-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+  .finding-title { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+  .finding-desc { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .finding-stat { font-family: var(--mono); color: var(--teal); font-size: 11px; margin-top: 5px; }
+
+  /* ── SEGMENT TABLE ── */
+  .seg-table { width: 100%; border-collapse: collapse; }
+  .seg-table th {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
+    color: var(--muted); text-transform: uppercase;
+    padding: 8px 12px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .seg-table td { padding: 10px 12px; border-bottom: 1px solid rgba(30,45,74,.5); }
+  .seg-table tr:last-child td { border-bottom: none; }
+  .seg-table tr:hover td { background: rgba(0,201,167,0.04); }
+  .seg-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 500;
+  }
+  .seg-bar { height: 4px; border-radius: 2px; background: var(--teal); display: inline-block; vertical-align: middle; margin-left: 8px; }
+  .churn-badge {
+    font-family: var(--mono); font-size: 11px;
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .churn-high  { color: var(--red);   background: var(--red-dim); }
+  .churn-med   { color: var(--amber); background: var(--amber-dim); }
+  .churn-low   { color: var(--teal);  background: var(--teal-dim); }
+
+  /* ── FOOTER ── */
+  footer {
+    margin-top: 60px; padding: 32px 0;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: gap;
+    color: var(--muted); font-size: 12px; font-family: var(--mono);
+  }
+  footer a { color: var(--teal); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .12em;
+    color: var(--teal); text-transform: uppercase;
+    margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-inner">
+      <div>
+        <div class="header-tag"><span></span> LIVE ANALYTICS DASHBOARD</div>
+        <h1>Customer Retention &<br><em>Churn Intelligence</em></h1>
+        <p class="header-sub">A full-pipeline analysis of 30,000 customers — RFM segmentation, churn early-warning signals, Pareto revenue distribution, and a ₹15L revenue recovery model.</p>
+        <div class="header-meta" style="margin-top:16px">
+          <span class="badge teal">MySQL · Advanced Excel · Power BI</span>
+          <span class="badge">30,000 customers</span>
+          <span class="badge">240,000+ transactions</span>
+          <span class="badge">Rahul Kumar Malik</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip">
+    <div class="kpi teal">
+      <div class="kpi-label">Total Customers</div>
+      <div class="kpi-value">30K</div>
+      <div class="kpi-sub">22,418 active · 7,582 churned</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">Overall Churn Rate</div>
+      <div class="kpi-value">25.3%</div>
+      <div class="kpi-sub">Basic plan: 39.1% · Enterprise: 8.1%</div>
+    </div>
+    <div class="kpi amber">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value">₹3,866L</div>
+      <div class="kpi-sub">Across all delivered orders</div>
+    </div>
+    <div class="kpi blue">
+      <div class="kpi-label">Avg Customer CLV</div>
+      <div class="kpi-value">₹12,887</div>
+      <div class="kpi-sub">Champions avg ₹21,000+</div>
+    </div>
+    <div class="kpi teal">
+      <div class="kpi-label">At-Risk Customers</div>
+      <div class="kpi-value">6,042</div>
+      <div class="kpi-sub">59.9% churn rate · ₹938L revenue exposure</div>
+    </div>
+  </div>
+
+  <!-- SECTION: CHURN ANALYSIS -->
+  <div class="section-label">01 — Churn Breakdown</div>
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-title">By Plan Type</div>
+      <div class="card-heading">Churn Rate per Plan</div>
+      <canvas id="planChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">By Acquisition Channel</div>
+      <div class="card-heading">Channel Churn Comparison</div>
+      <canvas id="channelChart"></canvas>
+    </div>
+  </div>
+
+  <!-- SECTION: MONTHLY TREND + INACTIVITY -->
+  <div class="section-label">02 — Churn Trend & Early Warning</div>
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-title">Monthly Churn Volume</div>
+      <div class="card-heading">18-Month Trend</div>
+      <canvas id="trendChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Pre-Churn Inactivity Signal</div>
+      <div class="card-heading">Days Inactive Before Churn</div>
+      <canvas id="inactChart"></canvas>
+    </div>
+  </div>
+
+  <!-- SECTION: RFM + PARETO -->
+  <div class="section-label">03 — RFM Segmentation & Pareto</div>
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-title">Pareto Revenue Curve</div>
+      <div class="card-heading">Top 20% Customers → 37% of Revenue</div>
+      <canvas id="paretoChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">RFM Revenue Distribution</div>
+      <div class="card-heading">Revenue Share by Segment</div>
+      <canvas id="rfmChart"></canvas>
+    </div>
+  </div>
+
+  <!-- SECTION: SEGMENT TABLE -->
+  <div class="section-label">04 — Segment Intelligence</div>
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">Full Segment Breakdown</div>
+    <div class="card-heading">RFM Segments — Revenue, Churn & Action Priority</div>
+    <table class="seg-table" id="segTable"></table>
+  </div>
+
+  <!-- SECTION: KEY FINDINGS -->
+  <div class="section-label">05 — Key Analytical Findings</div>
+  <div class="grid-2" style="margin-bottom:40px">
+    <div class="findings">
+      <div class="finding">
+        <div class="finding-icon">📊</div>
+        <div>
+          <div class="finding-title">Pareto Revenue Concentration</div>
+          <div class="finding-desc">The top 20% of customers generate 37% of revenue — and the top 50% account for over 71%. This validates classic Pareto distribution in subscription businesses and argues for segment-specific retention investment.</div>
+          <div class="finding-stat">TOP 20% → 37% REVENUE · TOP 50% → 71% REVENUE</div>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="finding-icon">⏱️</div>
+        <div>
+          <div class="finding-title">45-Day Inactivity is the Churn Trigger</div>
+          <div class="finding-desc">Churned customers show a consistent pattern of 45+ days of purchase inactivity before their churn date. This creates a measurable early-warning window for outreach — customers hitting 30 days inactive should immediately enter a retention campaign.</div>
+          <div class="finding-stat">45+ DAY INACTIVITY → PRIMARY CHURN SIGNAL</div>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="finding-icon">💳</div>
+        <div>
+          <div class="finding-title">Plan Type is the Strongest Predictor</div>
+          <div class="finding-desc">Basic plan customers churn at 39.1% vs Enterprise at 8.1% — a 4.8× difference. Price sensitivity and perceived value gap are the dominant drivers. Downgrade offers and feature unlock campaigns are more effective than discounts alone.</div>
+          <div class="finding-stat">BASIC 39.1% vs ENTERPRISE 8.1% → 4.8× DIFFERENCE</div>
+        </div>
+      </div>
+    </div>
+    <div class="findings">
+      <div class="finding">
+        <div class="finding-icon">🚨</div>
+        <div>
+          <div class="finding-title">"At Risk" Segment — Highest Revenue Exposure</div>
+          <div class="finding-desc">The At Risk RFM segment has a 59.9% churn rate — the highest of any segment — while still holding ₹938 Lakh in revenue. This makes it the single highest-priority retention target: high revenue at imminent risk.</div>
+          <div class="finding-stat">₹938L AT RISK · 59.9% CHURN RATE</div>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="finding-icon">📣</div>
+        <div>
+          <div class="finding-title">Paid Search Has the Worst Retention</div>
+          <div class="finding-desc">Paid Search customers churn at 30.1% — significantly above Organic (23.6%) and Social Media (23.2%). Acquisition channel quality directly predicts long-term retention, suggesting CAC reallocation away from paid search toward referral and organic.</div>
+          <div class="finding-stat">PAID SEARCH 30.1% vs ORGANIC 23.6% CHURN</div>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="finding-icon">💰</div>
+        <div>
+          <div class="finding-title">12% Churn Reduction = ₹15L Annual Recovery</div>
+          <div class="finding-desc">A targeted retention campaign reaching the Critical + High risk cohorts, achieving a 12% win-back rate, projects to ₹15,00,000+ in annualised MRR recovery at an estimated 8-10× campaign ROI — based on avg monthly spend of churned customers.</div>
+          <div class="finding-stat">12% WIN-BACK → ₹15L ARR RECOVERY · 8-10× ROI</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div>
+      <strong>Rahul Kumar Malik</strong> · Customer Retention & Churn Analysis Project<br>
+      Tools: MySQL · Advanced Excel · Power BI · Python (data generation)
+    </div>
+    <div style="text-align:right">
+      <a href="https://github.com/RahulKumarMalik/customer-churn-analysis">GitHub Repository</a><br>
+      <span style="color:var(--muted)">30,000 customers · 240,000+ transactions · 45,000+ support tickets</span>
+    </div>
+  </footer>
+
+</div><!-- /container -->
+
+<script>
+// ── EMBEDDED DATA ──────────────────────────────────────────
+const D = {
+  plan: [
+    {label:"Basic",    rate:39.1, total:10538, churned:4120},
+    {label:"Standard", rate:23.1, total:8878,  churned:2047},
+    {label:"Premium",  rate:15.5, total:7545,  churned:1168},
+    {label:"Enterprise",rate:8.1, total:3039,  churned:247},
+  ],
+  channel: [
+    {label:"Paid Search", rate:30.1},
+    {label:"Offline",     rate:28.0},
+    {label:"Email Camp.", rate:24.6},
+    {label:"Organic",     rate:23.6},
+    {label:"Referral",    rate:23.5},
+    {label:"Social Media",rate:23.2},
+  ],
+  monthly: [
+    {m:"Jul '23",n:191},{m:"Aug '23",n:190},{m:"Sep '23",n:184},
+    {m:"Oct '23",n:202},{m:"Nov '23",n:194},{m:"Dec '23",n:204},
+    {m:"Jan '24",n:200},{m:"Feb '24",n:214},{m:"Mar '24",n:180},
+    {m:"Apr '24",n:189},{m:"May '24",n:197},{m:"Jun '24",n:168},
+    {m:"Jul '24",n:173},{m:"Aug '24",n:182},{m:"Sep '24",n:137},
+    {m:"Oct '24",n:155},{m:"Nov '24",n:117},
+  ],
+  inact: {
+    labels: ["<15 days","15-29 days","30-44 days","45-89 days","90+ days"],
+    churned:[2628,1426,948,1469,1111],
+    active: [3511,2836,2288,4766,9017],
+  },
+  pareto: [
+    [0,0],[5,11.7],[10,21.0],[15,29.3],[20,36.8],[25,43.7],[30,50.0],
+    [35,56.0],[40,61.5],[45,66.6],[50,71.4],[55,75.9],[60,80.0],
+    [65,83.8],[70,87.3],[75,90.4],[80,93.2],[85,95.7],[90,97.7],[95,99.2],[100,100]
+  ],
+  segments: [
+    {seg:"Champions",     customers:4295,  rev:904,  churn:6.6,  share:23.4},
+    {seg:"Loyal",         customers:7638,  rev:1054, churn:8.4,  share:27.3},
+    {seg:"At Risk",       customers:6042,  rev:939,  churn:59.9, share:24.3},
+    {seg:"Recent",        customers:3607,  rev:310,  churn:7.7,  share:8.0},
+    {seg:"Needs Attn.",   customers:4025,  rev:418,  churn:24.0, share:10.8},
+    {seg:"Lost",          customers:4351,  rev:241,  churn:41.1, share:6.2},
+  ]
+};
+
+// ── CHART DEFAULTS ─────────────────────────────────────────
+Chart.defaults.color = '#64748b';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+const GRID = { color: 'rgba(30,45,74,0.6)', drawBorder: false };
+
+// ── 1. PLAN CHURN BAR ──────────────────────────────────────
+new Chart(document.getElementById('planChart'), {
+  type: 'bar',
+  data: {
+    labels: D.plan.map(d=>d.label),
+    datasets: [{
+      label: 'Churn Rate %',
+      data: D.plan.map(d=>d.rate),
+      backgroundColor: ['rgba(239,68,68,0.75)','rgba(245,158,11,0.75)','rgba(96,165,250,0.75)','rgba(0,201,167,0.75)'],
+      borderRadius: 6, borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive:true, plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>`  ${c.raw}% churn rate`}}},
+    scales:{
+      x:{grid:{display:false}},
+      y:{grid:GRID, ticks:{callback:v=>v+'%'}, max:50}
+    }
+  }
+});
+
+// ── 2. CHANNEL HORIZONTAL BAR ──────────────────────────────
+new Chart(document.getElementById('channelChart'), {
+  type: 'bar',
+  data: {
+    labels: D.channel.map(d=>d.label),
+    datasets:[{
+      label:'Churn Rate %',
+      data: D.channel.map(d=>d.rate),
+      backgroundColor: D.channel.map(d=>
+        d.rate>28?'rgba(239,68,68,0.7)':d.rate>25?'rgba(245,158,11,0.7)':'rgba(0,201,167,0.6)'
+      ),
+      borderRadius:5, borderSkipped:false,
+    }]
+  },
+  options:{
+    indexAxis:'y', responsive:true,
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>`  ${c.raw}% churn rate`}}},
+    scales:{
+      x:{grid:GRID, ticks:{callback:v=>v+'%'}, max:36},
+      y:{grid:{display:false}}
+    }
+  }
+});
+
+// ── 3. MONTHLY TREND LINE ──────────────────────────────────
+new Chart(document.getElementById('trendChart'), {
+  type:'line',
+  data:{
+    labels: D.monthly.map(d=>d.m),
+    datasets:[{
+      label:'Churned',
+      data: D.monthly.map(d=>d.n),
+      borderColor:'rgba(239,68,68,0.9)',
+      backgroundColor:'rgba(239,68,68,0.08)',
+      fill:true, tension:.4,
+      pointBackgroundColor:'rgba(239,68,68,0.9)',
+      pointRadius:3, pointHoverRadius:6,
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>`  ${c.raw} customers churned`}}},
+    scales:{
+      x:{grid:{display:false}, ticks:{maxRotation:45}},
+      y:{grid:GRID, min:80}
+    }
+  }
+});
+
+// ── 4. INACTIVITY STACKED BAR ─────────────────────────────
+new Chart(document.getElementById('inactChart'), {
+  type:'bar',
+  data:{
+    labels: D.inact.labels,
+    datasets:[
+      {label:'Churned',data:D.inact.churned,backgroundColor:'rgba(239,68,68,0.75)',borderRadius:4},
+      {label:'Active', data:D.inact.active, backgroundColor:'rgba(0,201,167,0.4)', borderRadius:4},
+    ]
+  },
+  options:{
+    responsive:true, plugins:{
+      legend:{position:'bottom',labels:{boxWidth:10,padding:16}},
+      tooltip:{callbacks:{label:c=>`  ${c.dataset.label}: ${c.raw.toLocaleString()}`}}
+    },
+    scales:{
+      x:{grid:{display:false}, stacked:true},
+      y:{grid:GRID, stacked:true}
+    }
+  }
+});
+
+// ── 5. PARETO LINE ────────────────────────────────────────
+new Chart(document.getElementById('paretoChart'), {
+  type:'line',
+  data:{
+    datasets:[
+      {
+        label:'Revenue Curve',
+        data: D.pareto.map(p=>({x:p[0],y:p[1]})),
+        borderColor:'rgba(0,201,167,0.9)', backgroundColor:'rgba(0,201,167,0.08)',
+        fill:true, tension:.3, pointRadius:2, pointHoverRadius:5,
+        borderWidth:2,
+      },
+      {
+        label:'Perfect Equality',
+        data:[{x:0,y:0},{x:100,y:100}],
+        borderColor:'rgba(100,116,139,0.35)', borderDash:[6,4],
+        pointRadius:0, fill:false, borderWidth:1,
+      }
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        callbacks:{
+          label:c=>`  Top ${c.raw.x.toFixed(0)}% customers → ${c.raw.y.toFixed(1)}% revenue`
+        }
+      },
+      annotation:{},
+    },
+    scales:{
+      x:{type:'linear',min:0,max:100,grid:GRID,ticks:{callback:v=>v+'%'},title:{display:true,text:'% of Customers'}},
+      y:{type:'linear',min:0,max:100,grid:GRID,ticks:{callback:v=>v+'%'},title:{display:true,text:'% of Revenue'}}
+    }
+  }
+});
+
+// ── 6. RFM DOUGHNUT ───────────────────────────────────────
+new Chart(document.getElementById('rfmChart'), {
+  type:'doughnut',
+  data:{
+    labels: D.segments.map(s=>s.seg),
+    datasets:[{
+      data: D.segments.map(s=>s.share),
+      backgroundColor:[
+        'rgba(0,201,167,0.8)','rgba(0,201,167,0.5)',
+        'rgba(239,68,68,0.8)','rgba(96,165,250,0.7)',
+        'rgba(245,158,11,0.7)','rgba(239,68,68,0.45)',
+      ],
+      borderColor:'#161f35', borderWidth:2, hoverOffset:8,
+    }]
+  },
+  options:{
+    responsive:true, cutout:'62%',
+    plugins:{
+      legend:{position:'bottom',labels:{padding:12,boxWidth:11}},
+      tooltip:{callbacks:{label:c=>`  ${c.label}: ${c.raw}% revenue share`}}
+    }
+  }
+});
+
+// ── SEGMENT TABLE ─────────────────────────────────────────
+const segColors = {
+  "Champions":"churn-low","Loyal":"churn-low","Recent":"churn-low",
+  "At Risk":"churn-high","Lost":"churn-high","Needs Attn.":"churn-med",
+};
+const priority = {
+  "Champions":"⭐ Reward & Upsell","Loyal":"💛 Nurture",
+  "At Risk":"🚨 Intervene Now","Recent":"🌱 Onboard Well",
+  "Needs Attn.":"📋 Re-engage","Lost":"😔 Win-back",
+};
+const tbl = document.getElementById('segTable');
+tbl.innerHTML = `<thead><tr>
+  <th>Segment</th><th>Customers</th><th>Revenue (₹L)</th>
+  <th>Rev Share</th><th>Churn Rate</th><th>Priority Action</th>
+</tr></thead>`;
+const tbody = document.createElement('tbody');
+D.segments.forEach(s=>{
+  const cls = segColors[s.seg]||'churn-med';
+  const barW = Math.round(s.share * 2.2);
+  tbody.innerHTML += `<tr>
+    <td><strong>${s.seg}</strong></td>
+    <td>${s.customers.toLocaleString()}</td>
+    <td>${s.rev}<span class="seg-bar" style="width:${barW}px"></span></td>
+    <td>${s.share}%</td>
+    <td><span class="churn-badge ${cls}">${s.churn}%</span></td>
+    <td style="color:var(--muted);font-size:12px">${priority[s.seg]||'—'}</td>
+  </tr>`;
+});
+tbl.appendChild(tbody);
+</script>
+</body>
+</html>
